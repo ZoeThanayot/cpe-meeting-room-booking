@@ -71,7 +71,7 @@ export function LoginForm() {
             <Input
               id="email"
               type="email"
-              placeholder="name@cpe.ku.ac.th"
+              placeholder="name@kmutt.ac.th"
               className="pl-10"
               disabled={isLoading}
               {...register('email')}
