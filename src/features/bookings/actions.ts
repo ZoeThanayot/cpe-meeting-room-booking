@@ -3,6 +3,7 @@
 // Example Server Action: Create booking + prevent overlapping times
 // This is the "standard pattern" that all write operations should follow
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 import { bookingFormSchema, type BookingFormInput } from './schema'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
@@ -45,5 +46,28 @@ export async function createBooking(
     return { ok: false, error: error.message }
   }
 
+  return { ok: true }
+}
+
+export async function cancelBooking(bookingId: string): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  // 1) User must be signed in
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Please sign in' }
+
+  // 2) Update status to 'cancelled' — RLS guarantees user owns it or is admin
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('id', bookingId)
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+
+  revalidatePath('/', 'layout')
   return { ok: true }
 }
