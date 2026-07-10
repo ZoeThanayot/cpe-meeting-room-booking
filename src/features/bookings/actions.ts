@@ -3,15 +3,15 @@
 // Example Server Action: Create booking + prevent overlapping times
 // This is the "standard pattern" that all write operations should follow
 import { createClient } from '@/lib/supabase/server'
-import { createBookingSchema, type CreateBookingInput } from './schema'
+import { bookingFormSchema, type BookingFormInput } from './schema'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 
 export async function createBooking(
-  input: CreateBookingInput,
+  input: BookingFormInput,
 ): Promise<ActionResult> {
   // 1) Always validate server-side (do not trust the client)
-  const parsed = createBookingSchema.safeParse(input)
+  const parsed = bookingFormSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid data' }
   }
@@ -24,13 +24,17 @@ export async function createBooking(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Please sign in' }
 
+  // Parse local timezone date and time into JavaScript Dates, then to ISO UTC string
+  const startIso = new Date(`${parsed.data.date}T${parsed.data.startTime}:00`).toISOString()
+  const endIso = new Date(`${parsed.data.date}T${parsed.data.endTime}:00`).toISOString()
+
   // 3) Insert — RLS restricts user_id to match the user's own ID (or admin)
   const { error } = await supabase.from('bookings').insert({
     room_id: parsed.data.roomId,
     user_id: user.id,
     meeting_name: parsed.data.meetingName,
-    start_time: parsed.data.startTime,
-    end_time: parsed.data.endTime,
+    start_time: startIso,
+    end_time: endIso,
   })
 
   // 4) Catch double-booking error from EXCLUDE constraint (SQLSTATE 23P01)
