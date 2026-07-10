@@ -1,16 +1,24 @@
-// Zod schema for booking feature — used to validate both client-side (RHF) and server-side (action)
 import { z } from 'zod'
 
-export const createBookingSchema = z
+export const bookingFormSchema = z
   .object({
-    roomId: z.string().uuid(),
+    roomId: z.string().uuid('Please select a meeting room'),
     meetingName: z.string().min(1, 'Please enter a meeting name'),
-    startTime: z.string().datetime(), // ISO string e.g. 2026-07-10T09:00:00Z
-    endTime: z.string().datetime(),
+    date: z.string().min(1, 'Please select a date'),
+    startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid start time format'),
+    endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid end time format'),
   })
-  .refine((d) => new Date(d.endTime) > new Date(d.startTime), {
-    message: 'End time must be after start time',
-    path: ['endTime'],
-  })
+  .refine(
+    (data) => {
+      if (!data.date || !data.startTime || !data.endTime) return false
+      const start = new Date(`${data.date}T${data.startTime}:00`)
+      const end = new Date(`${data.date}T${data.endTime}:00`)
+      return end > start
+    },
+    {
+      message: 'End time must be after start time',
+      path: ['endTime'],
+    }
+  )
 
-export type CreateBookingInput = z.infer<typeof createBookingSchema>
+export type BookingFormInput = z.infer<typeof bookingFormSchema>
