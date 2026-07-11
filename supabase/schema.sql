@@ -120,8 +120,30 @@ drop policy if exists profiles_update_own on public.profiles;
 create policy profiles_update_own on public.profiles
   for update using  ((select auth.uid()) = id)
               with check ((select auth.uid()) = id);
--- ⚠️ Prevent users from self-promoting to admin: Do not include the 'role' field in user-facing update forms
---    (For stricter security, column privilege or triggers can be used to ensure 'role' is not updated)
+
+-- 8.1.1 Prevent role escalation (enforced at the DB level) -------------
+-- The policy above allows users to update their own row on ANY column.
+-- Since the publishable key is public, a signed-in user could otherwise call
+-- the REST API directly and set role='admin'. This trigger blocks any change
+-- to 'role' unless the caller is already an admin.
+create or replace function public.prevent_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.role is distinct from old.role and not public.is_admin() then
+    raise exception 'Changing role is not allowed';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_prevent_role_change on public.profiles;
+create trigger trg_prevent_role_change
+  before update on public.profiles
+  for each row execute function public.prevent_role_change();
 
 -- 8.2 rooms: Anyone authenticated can select, only admin can write (insert/update/delete)
 drop policy if exists rooms_select_authenticated on public.rooms;
