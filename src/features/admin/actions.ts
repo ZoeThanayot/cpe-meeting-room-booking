@@ -51,8 +51,11 @@ export async function createRoom(input: CreateRoomInput): Promise<ActionResult> 
 
     revalidatePath('/', 'layout')
     return { ok: true }
-  } catch (err: any) {
-    return { ok: false, error: err.message || 'An unexpected error occurred' }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
   }
 }
 
@@ -127,7 +130,10 @@ export async function deleteRoom(roomId: string): Promise<ActionResult> {
 
     revalidatePath('/', 'layout')
     return { ok: true }
-  } catch (err: any) {
-    return { ok: false, error: err.message || 'An unexpected error occurred' }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
   }
 }

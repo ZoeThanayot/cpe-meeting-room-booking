@@ -20,6 +20,18 @@ export const bookingFormSchema = z
       path: ['endTime'],
     }
   )
+  .refine(
+    (data) => {
+      if (!data.date || !data.startTime) return true
+      // 1-minute grace so a booking starting "right now" is still accepted
+      const start = new Date(`${data.date}T${data.startTime}:00`)
+      return start.getTime() > Date.now() - 60 * 1000
+    },
+    {
+      message: 'Cannot book a time in the past',
+      path: ['startTime'],
+    }
+  )
 
 export type BookingFormInput = z.infer<typeof bookingFormSchema>
 
@@ -37,6 +49,10 @@ export const createBookingSchema = z
   .refine((data) => new Date(data.endIso) > new Date(data.startIso), {
     message: 'End time must be after start time',
     path: ['endIso'],
+  })
+  .refine((data) => new Date(data.startIso).getTime() > Date.now() - 60 * 1000, {
+    message: 'Cannot book a time in the past',
+    path: ['startIso'],
   })
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>

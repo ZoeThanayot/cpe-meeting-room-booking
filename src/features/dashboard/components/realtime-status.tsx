@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { type Database } from '@/types/database'
 import { BookingForm } from '@/features/bookings/components/booking-form'
 import { Loader2, Plus, Users, MapPin, Layers, CheckCircle2, AlertCircle } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, isSameDay } from 'date-fns'
 import { Button } from '@/components/ui/button'
 
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -47,6 +47,8 @@ export function RealtimeStatus({ rooms }: RealtimeStatusProps) {
 
   // Handle updates and timer ticking
   useEffect(() => {
+    // Initial data load on mount — state updates happen after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings()
 
     // Keep current time ticking every second to update statuses instantly
@@ -70,14 +72,8 @@ export function RealtimeStatus({ rooms }: RealtimeStatusProps) {
       clearInterval(timer)
       supabase.removeChannel(channel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Pre-select first room on load
-  useEffect(() => {
-    if (rooms.length > 0 && !selectedRoomId) {
-      setSelectedRoomId(rooms[0]?.id || '')
-    }
-  }, [rooms, selectedRoomId])
 
   // Helper to determine if a room is occupied right now
   const getRoomOccupancy = (roomId: string) => {
@@ -99,21 +95,22 @@ export function RealtimeStatus({ rooms }: RealtimeStatusProps) {
   })
   const availableCount = totalRoomsCount - occupiedCount
 
-  // Selected room details
-  const selectedRoom = rooms.find((r) => r.id === selectedRoomId)
+  // Selected room details — derived from state, falling back to the first
+  // room so the detail panel is never empty (no pre-select effect needed)
+  const selectedRoom = rooms.find((r) => r.id === selectedRoomId) ?? rooms[0] ?? null
   const currentBooking = selectedRoom ? getRoomOccupancy(selectedRoom.id) : null
 
   // Next booking today for selected room
   const getNextBooking = () => {
-    if (!selectedRoomId) return null
+    if (!selectedRoom) return null
     const now = currentTime.getTime()
-    
-    // Filter bookings for this room that start after now, ordered by start time
+
+    // Bookings for this room that start later TODAY, ordered by start time
     const upcoming = bookings
       .filter((b) => {
-        if (b.room_id !== selectedRoomId) return false
-        const start = new Date(b.start_time).getTime()
-        return start > now
+        if (b.room_id !== selectedRoom.id) return false
+        const start = new Date(b.start_time)
+        return start.getTime() > now && isSameDay(start, currentTime)
       })
       .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
 
@@ -191,7 +188,7 @@ export function RealtimeStatus({ rooms }: RealtimeStatusProps) {
             <div className="divide-y divide-zinc-150 dark:divide-zinc-800/60 max-h-[500px] overflow-y-auto pr-1">
               {rooms.map((room) => {
                 const occupancy = getRoomOccupancy(room.id)
-                const isSelected = room.id === selectedRoomId
+                const isSelected = room.id === selectedRoom?.id
 
                 return (
                   <div

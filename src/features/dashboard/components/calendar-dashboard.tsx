@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 
 // FullCalendar React wrappers
 import FullCalendar from '@fullcalendar/react'
+import { type EventClickArg } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -40,9 +41,9 @@ export function CalendarDashboard({ rooms }: CalendarDashboardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalInitialRoomId, setModalInitialRoomId] = useState('')
 
-  // Fetch bookings
+  // Fetch bookings — `loading` starts true; realtime refetches update the
+  // calendar silently instead of flashing the loading overlay
   const fetchBookings = async () => {
-    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -60,6 +61,8 @@ export function CalendarDashboard({ rooms }: CalendarDashboardProps) {
 
   // Subscribe to realtime database changes for bookings
   useEffect(() => {
+    // Initial data load on mount — state updates happen after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings()
 
     const channel = supabase
@@ -76,6 +79,7 @@ export function CalendarDashboard({ rooms }: CalendarDashboardProps) {
     return () => {
       supabase.removeChannel(channel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Filter bookings for calendar display
@@ -136,10 +140,12 @@ export function CalendarDashboard({ rooms }: CalendarDashboardProps) {
   }
 
   // Handle Event Click to show details
-  const handleEventClick = (info: any) => {
+  const handleEventClick = (info: EventClickArg) => {
+    const { start, end } = info.event
+    if (!start || !end) return
     const { roomName, roomType, capacity } = info.event.extendedProps
     toast(info.event.title, {
-      description: `Room: ${roomName} (${roomType} room, capacity: ${capacity})\nTime: ${format(new Date(info.event.start), 'HH:mm')} - ${format(new Date(info.event.end), 'HH:mm')}`,
+      description: `Room: ${roomName} (${roomType} room, capacity: ${capacity})\nTime: ${format(start, 'HH:mm')} - ${format(end, 'HH:mm')}`,
       icon: <Info className="h-4 w-4 text-indigo-500" />,
     })
   }

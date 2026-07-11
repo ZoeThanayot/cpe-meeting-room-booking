@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { CalendarDashboard } from './calendar-dashboard'
 import { RealtimeStatus } from './realtime-status'
@@ -70,13 +71,13 @@ export function DashboardContainer({ initialRooms, userEmail, userRole }: Dashbo
             </div>
 
             {userRole === 'admin' && (
-              <a 
-                href="/admin" 
+              <Link
+                href="/admin"
                 className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg border border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/40 transition-colors"
               >
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Admin Panel
-              </a>
+              </Link>
             )}
 
             <form action={signOut}>

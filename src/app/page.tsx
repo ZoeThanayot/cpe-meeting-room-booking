@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { signOut } from '@/features/auth/actions'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -70,7 +71,7 @@ export default async function Home() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <a
+              <Link
                 href="/dashboard"
                 className={cn(
                   buttonVariants({ variant: 'default' }),
@@ -78,7 +79,7 @@ export default async function Home() {
                 )}
               >
                 Go to Dashboard
-              </a>
+              </Link>
               
               <form action={signOut} className="flex-1">
                 <Button type="submit" variant="outline" className="w-full font-semibold border-zinc-200 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:hover:bg-rose-950/30 dark:hover:text-rose-400">
@@ -94,7 +95,7 @@ export default async function Home() {
               Please sign in or create an account to start booking meeting rooms.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <a
+              <Link
                 href="/login"
                 className={cn(
                   buttonVariants({ variant: 'default' }),
@@ -102,8 +103,8 @@ export default async function Home() {
                 )}
               >
                 Sign In
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/signup"
                 className={cn(
                   buttonVariants({ variant: 'outline' }),
@@ -111,7 +112,7 @@ export default async function Home() {
                 )}
               >
                 Sign Up
-              </a>
+              </Link>
             </div>
           </div>
         )}
