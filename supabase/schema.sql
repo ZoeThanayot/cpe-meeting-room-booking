@@ -174,10 +174,17 @@ create policy bookings_delete_own_or_admin on public.bookings
   for delete using ((select auth.uid()) = user_id or public.is_admin());
 
 
--- 9) ENABLE REALTIME FOR BOOKINGS TABLE (for room status dashboard) ----
+-- 9) ENABLE REALTIME FOR BOOKINGS + ROOMS TABLES (for dashboards) ------
 do $$
 begin
   alter publication supabase_realtime add table public.bookings;
+exception when duplicate_object then null; -- already exists, ignore
+end $$;
+
+-- rooms: lets user dashboards refresh the room list when admin adds/edits/deletes rooms
+do $$
+begin
+  alter publication supabase_realtime add table public.rooms;
 exception when duplicate_object then null; -- already exists, ignore
 end $$;
 
