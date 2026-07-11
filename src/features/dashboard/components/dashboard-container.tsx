@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { CalendarDashboard } from './calendar-dashboard'
 import { RealtimeStatus } from './realtime-status'
 import { MyBookings } from './my-bookings'
@@ -11,13 +12,36 @@ import { signOut } from '@/features/auth/actions'
 type Room = Database['public']['Tables']['rooms']['Row']
 
 interface DashboardContainerProps {
-  rooms: Room[]
+  initialRooms: Room[]
   userEmail: string
   userRole: string
 }
 
-export function DashboardContainer({ rooms, userEmail, userRole }: DashboardContainerProps) {
+export function DashboardContainer({ initialRooms, userEmail, userRole }: DashboardContainerProps) {
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState<'calendar' | 'status' | 'bookings'>('calendar')
+
+  // Keep the room list live so admin room changes appear without a refresh
+  const [rooms, setRooms] = useState<Room[]>(initialRooms)
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-rooms-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rooms' },
+        async () => {
+          const { data } = await supabase.from('rooms').select('*').order('name')
+          if (data) setRooms(data)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col font-sans">

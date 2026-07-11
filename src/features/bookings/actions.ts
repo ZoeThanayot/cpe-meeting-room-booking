@@ -58,13 +58,19 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   if (!user) return { ok: false, error: 'Please sign in' }
 
   // 2) Update status to 'cancelled' — RLS guarantees user owns it or is admin
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('bookings')
     .update({ status: 'cancelled' })
     .eq('id', bookingId)
+    .select('id')
 
   if (error) {
     return { ok: false, error: error.message }
+  }
+  // RLS silently filters rows the caller cannot update — 0 affected rows
+  // means the booking doesn't exist or belongs to someone else
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'Booking not found or you cannot cancel it' }
   }
 
   revalidatePath('/', 'layout')
