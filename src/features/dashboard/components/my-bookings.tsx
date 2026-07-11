@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { type Database } from '@/types/database'
 import { cancelBooking } from '@/features/bookings/actions'
 import { toast } from 'sonner'
-import { Calendar, Trash2, Loader2, Clock, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { Calendar, Trash2, Loader2, Clock, ShieldCheck } from 'lucide-react'
 import { format } from 'date-fns'
 
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -22,8 +22,9 @@ export function MyBookings({ rooms }: MyBookingsProps) {
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
 
+  // Note: no synchronous setLoading(true) here — `loading` starts true and
+  // realtime refetches update the list silently without flashing the spinner
   const fetchMyBookings = async (currentUserId: string) => {
-    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -41,24 +42,35 @@ export function MyBookings({ rooms }: MyBookingsProps) {
     }
   }
 
+  // Resolve the signed-in user once on mount
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUserId(user.id)
-        fetchMyBookings(user.id)
+      } else {
+        setLoading(false)
       }
     }
     checkUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    // Realtime changes listener for bookings table to refresh the list automatically
+  // Fetch bookings + subscribe to realtime changes once the user is known
+  useEffect(() => {
+    if (!userId) return
+
+    // Initial data load — state updates happen after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchMyBookings(userId)
+
     const channel = supabase
       .channel('my-bookings-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
         () => {
-          if (userId) fetchMyBookings(userId)
+          fetchMyBookings(userId)
         }
       )
       .subscribe()
@@ -66,6 +78,7 @@ export function MyBookings({ rooms }: MyBookingsProps) {
     return () => {
       supabase.removeChannel(channel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   const handleCancel = async (id: string) => {

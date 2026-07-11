@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 import { CalendarDashboard } from './calendar-dashboard'
 import { RealtimeStatus } from './realtime-status'
 import { MyBookings } from './my-bookings'
@@ -11,13 +13,36 @@ import { signOut } from '@/features/auth/actions'
 type Room = Database['public']['Tables']['rooms']['Row']
 
 interface DashboardContainerProps {
-  rooms: Room[]
+  initialRooms: Room[]
   userEmail: string
   userRole: string
 }
 
-export function DashboardContainer({ rooms, userEmail, userRole }: DashboardContainerProps) {
+export function DashboardContainer({ initialRooms, userEmail, userRole }: DashboardContainerProps) {
+  const supabase = createClient()
   const [activeTab, setActiveTab] = useState<'calendar' | 'status' | 'bookings'>('calendar')
+
+  // Keep the room list live so admin room changes appear without a refresh
+  const [rooms, setRooms] = useState<Room[]>(initialRooms)
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-rooms-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rooms' },
+        async () => {
+          const { data } = await supabase.from('rooms').select('*').order('name')
+          if (data) setRooms(data)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col font-sans">
@@ -46,13 +71,13 @@ export function DashboardContainer({ rooms, userEmail, userRole }: DashboardCont
             </div>
 
             {userRole === 'admin' && (
-              <a 
-                href="/admin" 
+              <Link
+                href="/admin"
                 className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg border border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/40 transition-colors"
               >
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Admin Panel
-              </a>
+              </Link>
             )}
 
             <form action={signOut}>

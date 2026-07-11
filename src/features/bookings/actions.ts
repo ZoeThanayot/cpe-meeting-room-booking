@@ -4,15 +4,18 @@
 // This is the "standard pattern" that all write operations should follow
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { bookingFormSchema, type BookingFormInput } from './schema'
+import { createBookingSchema, type CreateBookingInput } from './schema'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 
 export async function createBooking(
-  input: BookingFormInput,
+  input: CreateBookingInput,
 ): Promise<ActionResult> {
-  // 1) Always validate server-side (do not trust the client)
-  const parsed = bookingFormSchema.safeParse(input)
+  // 1) Always validate server-side (do not trust the client).
+  //    Times are already ISO UTC — converted on the client, which knows the
+  //    user's timezone. Never build Dates from wall-clock strings here: the
+  //    server's timezone (e.g. UTC in production) would shift every booking.
+  const parsed = createBookingSchema.safeParse(input)
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid data' }
   }
@@ -25,17 +28,13 @@ export async function createBooking(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Please sign in' }
 
-  // Parse local timezone date and time into JavaScript Dates, then to ISO UTC string
-  const startIso = new Date(`${parsed.data.date}T${parsed.data.startTime}:00`).toISOString()
-  const endIso = new Date(`${parsed.data.date}T${parsed.data.endTime}:00`).toISOString()
-
   // 3) Insert — RLS restricts user_id to match the user's own ID (or admin)
   const { error } = await supabase.from('bookings').insert({
     room_id: parsed.data.roomId,
     user_id: user.id,
     meeting_name: parsed.data.meetingName,
-    start_time: startIso,
-    end_time: endIso,
+    start_time: parsed.data.startIso,
+    end_time: parsed.data.endIso,
   })
 
   // 4) Catch double-booking error from EXCLUDE constraint (SQLSTATE 23P01)
@@ -59,13 +58,19 @@ export async function cancelBooking(bookingId: string): Promise<ActionResult> {
   if (!user) return { ok: false, error: 'Please sign in' }
 
   // 2) Update status to 'cancelled' — RLS guarantees user owns it or is admin
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('bookings')
     .update({ status: 'cancelled' })
     .eq('id', bookingId)
+    .select('id')
 
   if (error) {
     return { ok: false, error: error.message }
+  }
+  // RLS silently filters rows the caller cannot update — 0 affected rows
+  // means the booking doesn't exist or belongs to someone else
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'Booking not found or you cannot cancel it' }
   }
 
   revalidatePath('/', 'layout')

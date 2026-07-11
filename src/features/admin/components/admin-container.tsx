@@ -7,18 +7,18 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { type Database } from '@/types/database'
-import { createRoom, deleteRoom } from '../actions'
+import { createRoom, updateRoom, deleteRoom } from '../actions'
 import { cancelBooking } from '@/features/bookings/actions'
 import { createRoomSchema, type CreateRoomInput } from '../schema'
-import { 
-  Building, 
-  Trash2, 
-  Plus, 
-  Loader2, 
-  MapPin, 
-  Users, 
-  Layers, 
-  Calendar, 
+import {
+  Building,
+  Trash2,
+  Plus,
+  Pencil,
+  Loader2,
+  MapPin,
+  Users,
+  Calendar,
   ShieldAlert,
   ArrowLeft,
   XCircle
@@ -49,10 +49,13 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
   const [rooms, setRooms] = useState<Room[]>(initialRooms)
   const [bookings, setBookings] = useState<Booking[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
-  
+
   // Loaders
   const [loadingBookings, setLoadingBookings] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Room currently being edited — null means the form is in "add" mode
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null)
 
   // Add Room Form
   const {
@@ -76,9 +79,9 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
     if (data) setRooms(data)
   }
 
-  // Fetch Bookings & Profiles
+  // Fetch Bookings & Profiles — `loadingBookings` starts true; realtime
+  // refetches update the table silently without flashing the spinner
   const fetchData = async () => {
-    setLoadingBookings(true)
     try {
       const [bookingsRes, profilesRes] = await Promise.all([
         supabase.from('bookings').select('*').order('start_time', { ascending: false }),
@@ -96,6 +99,8 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
 
   // Initial load and subscriptions
   useEffect(() => {
+    // Initial data load on mount — state updates happen after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
 
     // Realtime subscriptions
@@ -117,16 +122,37 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
       supabase.removeChannel(roomsChannel)
       supabase.removeChannel(bookingsChannel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Action: Add Room
-  async function onAddRoom(data: CreateRoomInput) {
-    setActionLoading('add-room')
+  // Switch form into edit mode, pre-filled with the room's current values
+  function startEditRoom(room: Room) {
+    setEditingRoom(room)
+    reset({
+      name: room.name,
+      roomType: room.room_type,
+      capacity: room.capacity ?? 1,
+      location: room.location ?? '',
+    })
+  }
+
+  // Back to "add" mode with a clean form
+  function cancelEdit() {
+    setEditingRoom(null)
+    reset({ name: '', roomType: 'small', capacity: 10, location: '' })
+  }
+
+  // Action: Add or Update Room (form is shared between both modes)
+  async function onSubmitRoom(data: CreateRoomInput) {
+    setActionLoading('save-room')
     try {
-      const result = await createRoom(data)
+      const result = editingRoom
+        ? await updateRoom({ id: editingRoom.id, ...data })
+        : await createRoom(data)
+
       if (result.ok) {
-        toast.success('Room created successfully!')
-        reset()
+        toast.success(editingRoom ? 'Room updated successfully!' : 'Room created successfully!')
+        cancelEdit()
         fetchRooms()
       } else {
         toast.error(result.error)
@@ -146,6 +172,8 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
       const result = await deleteRoom(roomId)
       if (result.ok) {
         toast.success('Room deleted successfully!')
+        // Leave edit mode if the room being edited was just deleted
+        if (editingRoom?.id === roomId) cancelEdit()
         fetchRooms()
       } else {
         toast.error(result.error)
@@ -284,8 +312,21 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
                           </span>
 
                           <button
+                            onClick={() => startEditRoom(room)}
+                            title="Edit room"
+                            className={`p-2 border rounded-lg transition-colors cursor-pointer ${
+                              editingRoom?.id === room.id
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-600 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400'
+                                : 'border-zinc-200 dark:border-zinc-800 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/20'
+                            }`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+
+                          <button
                             onClick={() => onDeleteRoom(room.id)}
                             disabled={isDeleting}
+                            title="Delete room"
                             className="p-2 border border-zinc-200 dark:border-zinc-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                           >
                             {isDeleting ? (
@@ -301,15 +342,21 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
                 </div>
               </div>
 
-              {/* Right Panel: Add Room Form */}
+              {/* Right Panel: Add / Edit Room Form */}
               <div className="lg:col-span-1 p-6 bg-white border border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 rounded-2xl h-fit space-y-6">
                 <div>
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Add New Room</h3>
-                  <p className="text-xs text-zinc-500 mt-1">Create a new reservation room</p>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                    {editingRoom ? 'Edit Room' : 'Add New Room'}
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    {editingRoom
+                      ? `Editing "${editingRoom.name}"`
+                      : 'Create a new reservation room'}
+                  </p>
                 </div>
 
-                <form onSubmit={handleSubmit(onAddRoom)}>
-                  <fieldset disabled={actionLoading === 'add-room'} className="space-y-4">
+                <form onSubmit={handleSubmit(onSubmitRoom)}>
+                  <fieldset disabled={actionLoading === 'save-room'} className="space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         Room Name
@@ -373,10 +420,15 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
                       type="submit"
                       className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold flex items-center justify-center gap-2 mt-2"
                     >
-                      {actionLoading === 'add-room' ? (
+                      {actionLoading === 'save-room' ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Creating Room...
+                          {editingRoom ? 'Saving Changes...' : 'Creating Room...'}
+                        </>
+                      ) : editingRoom ? (
+                        <>
+                          <Pencil className="h-4 w-4" />
+                          Save Changes
                         </>
                       ) : (
                         <>
@@ -385,6 +437,17 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
                         </>
                       )}
                     </Button>
+
+                    {editingRoom && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={cancelEdit}
+                        className="w-full font-semibold border-zinc-200 dark:border-zinc-800"
+                      >
+                        Cancel Editing
+                      </Button>
+                    )}
                   </fieldset>
                 </form>
               </div>

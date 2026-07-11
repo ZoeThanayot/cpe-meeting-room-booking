@@ -37,7 +37,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardContainer
-      rooms={rooms}
+      initialRooms={rooms}
       userEmail={user.email || ''}
       userRole={profile?.role || 'user'}
     />
