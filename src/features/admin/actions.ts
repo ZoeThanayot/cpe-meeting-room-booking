@@ -2,7 +2,12 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { createRoomSchema, type CreateRoomInput } from './schema'
+import {
+  createRoomSchema,
+  updateRoomSchema,
+  type CreateRoomInput,
+  type UpdateRoomInput,
+} from './schema'
 
 type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -48,6 +53,45 @@ export async function createRoom(input: CreateRoomInput): Promise<ActionResult> 
     return { ok: true }
   } catch (err: any) {
     return { ok: false, error: err.message || 'An unexpected error occurred' }
+  }
+}
+
+export async function updateRoom(input: UpdateRoomInput): Promise<ActionResult> {
+  try {
+    await assertAdmin()
+
+    const parsed = updateRoomSchema.safeParse(input)
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+    }
+
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('rooms')
+      .update({
+        name: parsed.data.name,
+        room_type: parsed.data.roomType,
+        capacity: parsed.data.capacity,
+        location: parsed.data.location,
+      })
+      .eq('id', parsed.data.id)
+      .select('id')
+
+    if (error) {
+      return { ok: false, error: error.message }
+    }
+    // RLS returns 0 updated rows (without an error) when the room is missing
+    if (!data || data.length === 0) {
+      return { ok: false, error: 'Room not found' }
+    }
+
+    revalidatePath('/', 'layout')
+    return { ok: true }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'An unexpected error occurred',
+    }
   }
 }
 
