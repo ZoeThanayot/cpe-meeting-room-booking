@@ -58,7 +58,14 @@ export function BookingForm({ rooms, initialRoomId = '', onSuccess }: BookingFor
   async function onSubmit(data: BookingFormInput) {
     setIsLoading(true)
     try {
-      const result = await createBooking(data)
+      // Convert wall-clock date+time to ISO UTC here on the CLIENT — the
+      // browser knows the user's timezone, while the server may run in UTC
+      const result = await createBooking({
+        roomId: data.roomId,
+        meetingName: data.meetingName,
+        startIso: new Date(`${data.date}T${data.startTime}:00`).toISOString(),
+        endIso: new Date(`${data.date}T${data.endTime}:00`).toISOString(),
+      })
 
       if (result.ok) {
         toast.success('Room booked successfully!')

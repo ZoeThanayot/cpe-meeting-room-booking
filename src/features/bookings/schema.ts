@@ -22,3 +22,21 @@ export const bookingFormSchema = z
   )
 
 export type BookingFormInput = z.infer<typeof bookingFormSchema>
+
+// Payload for the createBooking server action. Times arrive as ISO UTC
+// strings converted on the CLIENT, where the user's local timezone is known —
+// the server may run in a different timezone (e.g. UTC on Vercel), so it must
+// never interpret wall-clock strings itself.
+export const createBookingSchema = z
+  .object({
+    roomId: z.string().uuid('Please select a meeting room'),
+    meetingName: z.string().min(1, 'Please enter a meeting name'),
+    startIso: z.iso.datetime('Invalid start time'),
+    endIso: z.iso.datetime('Invalid end time'),
+  })
+  .refine((data) => new Date(data.endIso) > new Date(data.startIso), {
+    message: 'End time must be after start time',
+    path: ['endIso'],
+  })
+
+export type CreateBookingInput = z.infer<typeof createBookingSchema>
