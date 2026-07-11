@@ -18,7 +18,6 @@ import {
   Loader2,
   MapPin,
   Users,
-  Layers,
   Calendar,
   ShieldAlert,
   ArrowLeft,
@@ -80,9 +79,9 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
     if (data) setRooms(data)
   }
 
-  // Fetch Bookings & Profiles
+  // Fetch Bookings & Profiles — `loadingBookings` starts true; realtime
+  // refetches update the table silently without flashing the spinner
   const fetchData = async () => {
-    setLoadingBookings(true)
     try {
       const [bookingsRes, profilesRes] = await Promise.all([
         supabase.from('bookings').select('*').order('start_time', { ascending: false }),
@@ -100,6 +99,8 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
 
   // Initial load and subscriptions
   useEffect(() => {
+    // Initial data load on mount — state updates happen after await, not synchronously
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData()
 
     // Realtime subscriptions
@@ -121,6 +122,7 @@ export function AdminContainer({ initialRooms }: AdminContainerProps) {
       supabase.removeChannel(roomsChannel)
       supabase.removeChannel(bookingsChannel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Switch form into edit mode, pre-filled with the room's current values
