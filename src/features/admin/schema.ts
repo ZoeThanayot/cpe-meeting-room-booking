@@ -10,3 +10,9 @@ export const createRoomSchema = z.object({
 })
 
 export type CreateRoomInput = z.infer<typeof createRoomSchema>
+
+export const updateRoomSchema = createRoomSchema.extend({
+  id: z.string().uuid('Invalid room id'),
+})
+
+export type UpdateRoomInput = z.infer<typeof updateRoomSchema>
