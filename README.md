@@ -1,5 +1,11 @@
 # CPE Meeting Room Booking — Starter
 
+- 🚀 Live URL (Vercel)
+  **https://cpe-meeting-room-booking.vercel.app/admin
+
+- 🚀 notion book
+  **https://app.notion.com/p/CPE-SE-Exam-ISAP-39916116748381d287a5f2ec3826a1e5?source=copy_link
+
 Starter project for **Next.js 16 + Supabase**, featuring the correct authentication integration using the latest standards (`proxy.ts` + `@supabase/ssr` + publishable key).
 
 > This folder is designed to contain **only the files that `create-next-app` cannot generate automatically** (Supabase setup, folder structure, database schema, and developer guidelines) to ensure configurations/versions do not become outdated.
@@ -12,12 +18,12 @@ We have already completed the Next.js boilerplate setup and dependency installat
 
 1. **Next.js Project Creation:** Initialized using standard App Router, TypeScript, Tailwind CSS, and `src/` directory configurations.
 2. **Dependencies Installed:**
-   * `@supabase/supabase-js`, `@supabase/ssr`
-   * `zod`, `react-hook-form`, `@hookform/resolvers`
-   * `@tanstack/react-query`
-   * FullCalendar packages (`@fullcalendar/core`, `@fullcalendar/react`, `@fullcalendar/daygrid`, `@fullcalendar/timegrid`, `@fullcalendar/interaction`)
-   * `date-fns`, `sonner`, `lucide-react`, `clsx`, `tailwind-merge`
-   * `prettier`, `prettier-plugin-tailwindcss` (devDependencies)
+   - `@supabase/supabase-js`, `@supabase/ssr`
+   - `zod`, `react-hook-form`, `@hookform/resolvers`
+   - `@tanstack/react-query`
+   - FullCalendar packages (`@fullcalendar/core`, `@fullcalendar/react`, `@fullcalendar/daygrid`, `@fullcalendar/timegrid`, `@fullcalendar/interaction`)
+   - `date-fns`, `sonner`, `lucide-react`, `clsx`, `tailwind-merge`
+   - `prettier`, `prettier-plugin-tailwindcss` (devDependencies)
 3. **shadcn/ui Initialized:** Added `button`, `input`, `form`, and `sonner` toast components.
 
 ---
@@ -28,18 +34,21 @@ To run the application locally, follow these steps:
 
 1. **Environment Configuration:**
    Copy `.env.local.example` to `.env.local`:
+
    ```bash
    cp .env.local.example .env.local
    ```
+
    Open `.env.local` and fill in your Supabase project URL and Publishable Key.
 
 2. **Database Setup:**
-   * Open your Supabase Dashboard.
-   * Go to **SQL Editor** -> **New query**.
-   * Copy the contents of `supabase/schema.sql` and run it to set up the tables, Row Level Security (RLS) policies, and triggers.
+   - Open your Supabase Dashboard.
+   - Go to **SQL Editor** -> **New query**.
+   - Copy the contents of `supabase/schema.sql` and run it to set up the tables, Row Level Security (RLS) policies, and triggers.
 
 3. **Generate TypeScript Types (Recommended):**
    Generate exact database types using Supabase CLI:
+
    ```bash
    npx supabase gen types typescript --project-id <PROJECT_REF> > src/types/database.ts
    ```
