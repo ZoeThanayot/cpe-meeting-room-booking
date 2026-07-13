@@ -1,7 +1,7 @@
 # CPE Meeting Room Booking — Starter
 
 - 🚀 Live URL (Vercel)
-  **https://cpe-meeting-room-booking.vercel.app/admin
+  **https://cpe-meeting-room-booking.vercel.app
 
 - 🚀 notion book
   **https://app.notion.com/p/CPE-SE-Exam-ISAP-39916116748381d287a5f2ec3826a1e5?source=copy_link
